@@ -9,6 +9,7 @@ import Lottie from 'lottie-react';
 import '../App.css';
 import { Button } from "@/components/ui/button";
 import { generatePath } from "react-router-dom";
+import { toast } from "sonner";
 
 const CreateTrip = () => {
   const [query, setQuery] = useState("");
@@ -31,8 +32,8 @@ const CreateTrip = () => {
 
 
   const OnGenerateTrip=()=>{
-    if(formData?.noOfDays>15){
-      console.log("Please enter Trip days less than 15");
+    if(formData?.noOfDays>15 &&!formData?.location||!formData?.budget||!formdata?.traveller){
+      toast("Please Fill all Details");
       return ;
     }
     console.log(formData);
@@ -59,12 +60,12 @@ const CreateTrip = () => {
     fetchPlaces(value);
   };
 
-  // Handle place selection
+  
   const handlePlaceSelect = (place) => {
     setQuery(place.title);
     setLocation(place);
     setPlaces([]);
-    InputChange('location', place.title); // Only store the selected place title
+    InputChange('location', place.title); 
   };
 
   return (
