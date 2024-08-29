@@ -6,6 +6,7 @@ import tripAnimation from '../assets/trip.json';
 import Lottie from 'lottie-react';
 import '../App.css';
 import axios from "axios";
+import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { chatSession } from "@/service/AIModel";
@@ -19,12 +20,18 @@ import {
 } from "@/components/ui/dialog"
 
 import GooglePlacesAutocomplete from "react-google-places-autocomplete";
+import { useGoogleLogin } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom";
+import { AiOutlineLoading3Quarters } from "react-icons/ai";
+import { doc, setDoc } from "firebase/firestore";
+import { db } from "@/service/firebaseConfig";
 
 const CreateTrip = () => {
   const [places, setPlaces] = useState([]);
   const [formData, setFormData] = useState({});
   const[open,SetOpen]=useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const[loading,setLoading]=useState(false);
 
   useEffect(() => {
     const loadScript = () => {
@@ -56,33 +63,69 @@ const CreateTrip = () => {
   }, [formData]);
 
   const OnGenerateTrip = async () => {
-
-    const user =localStorage.getItem('user');
-    if(!user){
+    const user = localStorage.getItem('user');
+    if (!user) {
       SetOpen(true);
-      return ;
-    }
-    if (formData?.noOfDays > 15 && !formData?.location || !formData?.budget || !formData?.traveller) {
-      toast("Please Fill all Details");
       return;
     }
-    toast("Form Generated");
+    
+    // Improved form validation
+    if (!formData?.location || formData?.noOfDays > 15 || !formData?.budget || !formData?.traveller) {
+      toast("Please fill all details correctly");
+      return;
+    }
+  
+    toast("Generating your trip...");
+    setLoading(true);
+  
     const FINAL_PROMPT = AI_PROMPT
       .replace('{location}', formData?.location)
       .replace('{totalDays}', formData?.noOfDays)
       .replace('{traveller}', formData?.traveller)
-      .replace('{budget}', formData?.budget)
-      .replace('{totalDays}', formData?.noOfDays);
+      .replace('{budget}', formData?.budget);
+  
     try {
-      console.log(FINAL_PROMPT);
       const result = await chatSession.sendMessage(FINAL_PROMPT);
-      console.log(result?.response?.text());
+      setLoading(false);
+      SaveAiTrip(result?.response?.text());
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error generating trip:', error);
       toast("An error occurred while generating the trip.");
+      setLoading(false);
     }
   };
+  
 
+  const SaveAiTrip=async(TripData) => {
+    setLoading(true);
+    const user=JSON.parse(localStorage.getItem("user"));
+    const docId=Date.now().toString();
+    await setDoc(doc(db, "AiTrips", docId), {
+      userSelection:formData,
+      tripData:JSON.parse(TripData),
+      userEmail:user?.email,
+      id:docId
+    });
+    setLoading(false);
+    //navigate('/view-trip/'+docId);
+  }
+  const login=useGoogleLogin({
+    onSuccess:(codeResp)=>GetUserProfile(codeResp),
+    onError:(error)=>console.log(error)
+  })
+
+  const GetUserProfile=(tokenInfo)=>{
+    axios.get(`https://www.googleapis.com/oauth2/v1/userinfo?acess_token=${tokenInfo?.access_token}`,{
+      headers: {
+       Authorization: `Bearer ${tokenInfo?.access_token}`,
+       Accept:'Application/json'
+      }
+    }).then((resp) => {console.log(resp);
+      localStorage.setItem('user',JSON.stringify(resp.data));
+      SetOpen(false);
+      OnGenerateTrip();
+    })
+  }
   return (
     <div className="sm:px-10 md:px-32 lg:px-56 xl:px-72 px-5 mt-10">
       <div className="hidden md:block">
@@ -175,20 +218,31 @@ const CreateTrip = () => {
         </div>
       </div>
 
-      <div className="my-10 justify-end flex">
-        <Button onClick={OnGenerateTrip}>Generate Trip</Button>
+      
+      <div className="my-10 flex justify-end ">
+        <Button onClick={OnGenerateTrip} disabled={loading} >
+          {loading ? 
+          <AiOutlineLoading3Quarters className="h-7 w-7 animate-spin" />
+           : 'Generate Trip' }
+          </Button>
       </div>
+
       <Dialog open={open}>
-      <DialogTrigger>Open</DialogTrigger>
-  <DialogContent>
-    <DialogHeader>
-      <DialogDescription>
-        <img src='/logo.svg'/>
-        <h2 > Sign in with Google</h2>
-        <h2>Sign in into the app with google authentication</h2>
-      </DialogDescription>
-    </DialogHeader>
-  </DialogContent>
+        <DialogContent>
+          <DialogHeader>
+          <DialogTitle className='hidden'>Are you absolutely sure?</DialogTitle>
+            <DialogDescription>
+              <img src="/logo.svg"/>
+              <h2 className="font-bold text-lg mt-6">Sign In with Google</h2>
+              <p>Sign In to the App with Google authentication securely</p>
+              <Button 
+              onClick={login} className="w-full mt-5 flex gap-4 items-center">
+                <FcGoogle className="h-7 w-7"/>
+                Sign In With Google
+              </Button>
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
       </Dialog>
     </div>
   );
