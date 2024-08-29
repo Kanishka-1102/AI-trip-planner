@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 //import { getAnalytics } from "firebase/analytics";
 import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
-  apiKey: "AIzaSyAuI8O1xLCVU7cdlWu6Hpoph7BKz8mUZLk",
+  apiKey:import.meta.env.VITE_FIREBASE,
   authDomain: "ai-trip-planner-f69e6.firebaseapp.com",
   projectId: "ai-trip-planner-f69e6",
   storageBucket: "ai-trip-planner-f69e6.appspot.com",

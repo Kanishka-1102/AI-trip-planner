@@ -107,7 +107,7 @@ const CreateTrip = () => {
       id:docId
     });
     setLoading(false);
-    //navigate('/view-trip/'+docId);
+    navigate('/view-trip/'+docId);
   }
   const login=useGoogleLogin({
     onSuccess:(codeResp)=>GetUserProfile(codeResp),
